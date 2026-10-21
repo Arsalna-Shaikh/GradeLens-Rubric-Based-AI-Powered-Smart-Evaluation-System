@@ -1,0 +1,32 @@
+{
+  "name": "gradelens",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "postinstall": "python -m pip install -r backend/requirements.txt || echo \"Backend dependency install skipped\"",
+    "dev": "concurrently -k -n backend,frontend -c green,blue \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev:backend": "cd backend && alembic upgrade head && uvicorn app.main:app --reload --host 0.0.0.0 --port 8000",
+    "dev:frontend": "node scripts/start-frontend.js dev",
+    "build": "next build",
+    "start": "concurrently -k -n backend,frontend -c green,blue \"npm run start:backend\" \"npm run start:frontend\"",
+    "start:backend": "cd backend && alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000",
+    "start:frontend": "node scripts/start-frontend.js start",
+    "lint": "next lint",
+    "test:backend": "cd backend && pytest -q"
+  },
+  "dependencies": {
+    "next": "14.2.4",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.2",
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
+    "autoprefixer": "^10.4.19",
+    "concurrently": "^8.2.2",
+    "postcss": "^8.4.38",
+    "tailwindcss": "^3.4.4",
+    "typescript": "^5.4.5"
+  }
+}
