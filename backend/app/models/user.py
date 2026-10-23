@@ -27,4 +27,9 @@ class User(Base):
 
     classes: Mapped[List["Class"]] = relationship("Class", back_populates="teacher")
     enrollments: Mapped[List["Enrollment"]] = relationship("Enrollment", back_populates="student")
-    submissions: Mapped[List["Submission"]] = relationship("Submission", back_populates="student", cascade="all, delete-orphan")
+    submissions: Mapped[List["Submission"]] = relationship(
+        "Submission",
+        back_populates="student",
+        foreign_keys="Submission.student_id",
+        cascade="all, delete-orphan",
+    )

@@ -2,7 +2,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session, selectinload
 from app.db import get_db
-from app.deps import require_role
+from app.deps import get_current_user, require_role
 from app.models.user import User
 from app.models.class_ import Class
 from app.models.assignment import Assignment
@@ -23,7 +23,7 @@ def create(class_id: int, payload: AssignmentCreate, current: Teacher, db: Annot
     return item
 
 @router.get("/class/{class_id}", response_model=None)
-def list_for_class(class_id: int, current: User = Depends(__import__('app.deps', fromlist=['get_current_user']).get_current_user), db: Annotated[Session, Depends(get_db)]):
+def list_for_class(class_id: int, db: Annotated[Session, Depends(get_db)], current: User = Depends(get_current_user)):
     query = db.query(Assignment).options(selectinload(Assignment.questions)).join(Class).filter(Assignment.class_id == class_id)
     if current.role == "teacher":
         query = query.filter(Class.teacher_id == current.id)
@@ -40,7 +40,7 @@ def list_for_class(class_id: int, current: User = Depends(__import__('app.deps',
     return rows
 
 @router.get("/{assignment_id}", response_model=None)
-def get_one(assignment_id: int, current: User = Depends(__import__('app.deps', fromlist=['get_current_user']).get_current_user), db: Annotated[Session, Depends(get_db)]):
+def get_one(assignment_id: int, db: Annotated[Session, Depends(get_db)], current: User = Depends(get_current_user)):
     row = db.query(Assignment).options(selectinload(Assignment.questions)).join(Class).filter(Assignment.id == assignment_id).first()
     if not row:
         raise HTTPException(404, "Assignment not found")

@@ -24,5 +24,6 @@ class Submission(Base):
     ocr_error: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     ocr_processed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     assignment = relationship("Assignment", back_populates="submissions")
-    student = relationship("User", back_populates="submissions")
+    student = relationship("User", back_populates="submissions", foreign_keys=[student_id])
     answers = relationship("Answer", back_populates="submission", cascade="all, delete-orphan")
+    feedback_report = relationship("FeedbackReport", back_populates="submission", uselist=False, cascade="all, delete-orphan")

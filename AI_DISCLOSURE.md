@@ -40,3 +40,25 @@ This pass added focused regression coverage for proxy token fallbacks and authen
 
 ## Final hardening note
 The final pass was limited to security verification and deployment readiness: startup failures are logged while optional routers remain isolated, release-only response boundaries were reviewed, and the PDF dependency/documentation were aligned with the approved workflow. AI-generated suggestions remain drafts until teacher approval.
+
+## Login fix chunks (commits 1–4)
+
+| Date | Tool | Task | Human review |
+|------|------|------|--------------|
+| 2025-06-10 | Coding agent | Generated the four small login-fix changes: disambiguated SQLAlchemy submission relationships, restored the assignments router dependency wiring, and improved actionable frontend login errors | A human reproduced the login failure and reviewed each change; no schema or dependency changes were made |
+
+The changes are intended to be applied as four separate commits in the requested order. Commit 5 records this combined disclosure entry.
+
+## Assignment UI chunks (commits 1–7)
+
+| Date | Tool | Task | Human review |
+|------|------|------|--------------|
+| 2025-06-10 | Coding agent | feat(routes): root `app/teacher/{assignments,review,grading,analytics}` re-export pages | Confirmed routes resolve instead of 404 |
+| 2025-06-10 | Coding agent | feat(teacher): dashboard links to Create assignment, Review, Grading, Analytics | Visual check of link row |
+| 2025-06-10 | Coding agent | fix(teacher): ProtectedRoute + RoleGuard on assignment page, optional ISO deadline, Back to dashboard link | Role guard and deadline payload reviewed |
+| 2025-06-10 | Coding agent | feat(teacher): MCQ options/correct answer, client validation matching backend rules, backend error display, total marks | Payload compared against `AssignmentCreate` validator |
+| 2025-06-10 | Coding agent | feat(student): `/student/assignments` list grouped by class with submitted status | Endpoints `/classes/enrolled`, `/assignments/class/{id}`, `/submissions/mine` reused unchanged |
+| 2025-06-10 | Coding agent | feat(student): text/PDF submission form (FormData, client .pdf + 10 MB check, server errors shown) | Server remains source of truth for deadline, duplicate, enrollment and PDF checks |
+| 2025-06-10 | Coding agent | feat(student): dashboard "View assignments" link and assignment titles in My submissions | No API changes |
+
+No backend code, migrations or dependencies were changed for these chunks.
