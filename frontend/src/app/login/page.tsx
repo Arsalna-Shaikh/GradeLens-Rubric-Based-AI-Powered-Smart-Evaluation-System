@@ -30,7 +30,16 @@ export default function Login() {
         await login(data.access_token, data.user)
       }
     } catch (err: any) {
-      setError(err.data?.detail || "Login failed")
+      const detail = err.data?.detail
+      setError(
+        typeof detail === "string"
+          ? detail
+          : Array.isArray(detail)
+          ? "Please enter a valid email and password"
+          : err.status && err.status >= 500
+          ? "Server error - the API failed. Check backend logs."
+          : "Cannot reach the server. Is the backend running?"
+      )
     } finally {
       setLoading(false)
     }

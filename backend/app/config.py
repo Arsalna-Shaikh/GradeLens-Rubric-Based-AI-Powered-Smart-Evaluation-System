@@ -5,8 +5,10 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
 
-    DATABASE_URL: str
-    JWT_SECRET: str = ""
+    # Keep local previews runnable when workspace secrets are not configured;
+    # production deployments should always provide these through the Secrets panel.
+    DATABASE_URL: str = "sqlite:///./gradelens.db"
+    JWT_SECRET: str = "preview-only-secret-change-me-32chars"
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
     TEMP_TOKEN_EXPIRE_MINUTES: int = 5

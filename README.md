@@ -28,6 +28,23 @@ uvicorn app.main:app --reload --port 8000
 
 Then start Next.js from `frontend` (`npm install; npm run dev`) or use the root scripts if configured. Feature routers are loaded defensively, while auth and `/health` remain available if an optional integration is unavailable.
 
+## Using the app
+
+1. **Teacher** registers (role: teacher), logs in, and creates a class on `/teacher`. The class card shows its **join code**. Share it with students.
+2. The teacher clicks **Create assignment** (`/teacher/assignments`), picks the class, and adds a title, an optional deadline and questions. Multiple choice questions need four options and a correct answer. Written questions need a rubric or sample answer. The page shows the running total of marks.
+3. **Student** registers (role: student), logs in, and enrolls on `/student` with the join code.
+4. The student clicks **View assignments** (`/student/assignments`), picks **Submit work** on an assignment, and submits typed text and/or a PDF (10 MB max). The server enforces deadlines, one submission per assignment, and checks that the PDF is valid.
+5. The teacher opens **Review** (`/teacher/review`) or **Grading** from the dashboard to see the submission, edit scores/feedback, then **Approve & release** it to the student.
+
+## Student assignments (how to check)
+
+1. Log in as a student (or register one) and open `/student`.
+2. Enroll with a class join code (demo seed: `DEMO11`).
+3. Under **My classes & assignments**, each enrolled class lists its assignments (`GET /assignments/class/{class_id}`) with the deadline and whether you've submitted.
+4. Click **Submit work**, then type an answer and/or attach a PDF (10 MB max). This sends multipart data to `POST /submissions/assignments/{id}`. Errors from the backend appear inline, such as "deadline passed", "already submitted" or "not enrolled".
+
+The SQLAlchemy relationships `User.submissions` and `Submission.student` are pinned to `Submission.student_id`. `Submission.feedback_report` is a one-to-one relationship.
+
 ## Demo data
 
 Development only: `python scripts/seed.py` creates `teacher@gradelens.com` and `student@gradelens.com`, both using `DemoOnly-ChangeMe-123!` by default, plus class code `DEMO11` and a sample assignment. Set `DEMO_PASSWORD` for local demonstrations; never use demo credentials in production.

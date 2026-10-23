@@ -93,8 +93,8 @@ def upgrade() -> None:
         ),
         if_not_exists=True,
     )
-    op.create_unique_constraint(
-        "uq_enrollment_student_class", "enrollments", ["student_id", "class_id"]
+    op.create_index(
+        "uq_enrollment_student_class", "enrollments", ["student_id", "class_id"], unique=True
     )
 
     op.create_table(
@@ -219,8 +219,8 @@ def upgrade() -> None:
         sa.Column("is_downloaded", sa.Boolean(), nullable=False, server_default=sa.text("false")),
         if_not_exists=True,
     )
-    op.create_unique_constraint(
-        "uq_feedback_report_submission", "feedback_reports", ["submission_id"]
+    op.create_index(
+        "uq_feedback_report_submission", "feedback_reports", ["submission_id"], unique=True
     )
 
 
