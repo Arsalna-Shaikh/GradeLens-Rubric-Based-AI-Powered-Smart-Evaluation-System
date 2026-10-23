@@ -31,13 +31,13 @@ graph LR
 - Passwords are hashed with bcrypt via passlib.
 - JWT access tokens include `sub` (user id) and `role`.
 - TOTP 2FA uses pyotp. During login, users with 2FA enabled receive a short-lived `scope=2fa` temp token; they exchange it plus a TOTP code for a full access token.
-- The frontend stores the JWT in `localStorage` and sends it as a Bearer token. This tradeoff is documented here because Next.js client-side auth is simplest with localStorage; switching to httpOnly cookies is recommended before production.
+- The frontend currently stores the JWT in `localStorage` and sends Authorization, X-Auth-Token, and X-Access-Token headers (plus a constrained query fallback for preview proxies). This is a compatibility tradeoff; production should migrate to an httpOnly, Secure, SameSite cookie session.
 
 ## Authorization
 
 - `get_current_user` validates the access token and rejects `scope=2fa` tokens on normal routes.
 - `require_role("teacher" | "student")` returns HTTP 403 for mismatched roles.
-- Every data query is filtered by the authenticated user's id (to be enforced as business endpoints are added).
+- Every data query is filtered by the authenticated user's id and, for teachers, class ownership. Student submission status is intentionally minimal before release; result and report endpoints require released status.
 
 ## Preview integration
 

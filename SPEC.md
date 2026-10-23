@@ -447,3 +447,8 @@ The `score` must be a number between 0 and the question's maximum marks.
 
 
 **End of specification.**
+
+
+## Phase 11 hardening notes
+
+Production readiness requires running `npm run test:backend` against the configured PostgreSQL database and exercising the teacher/student journey. Access tokens are accepted through Authorization, X-Auth-Token, X-Access-Token, and query fallback transport for constrained preview proxies. Students receive only released submissions and reports; AI draft fields remain teacher-only. Submission deadlines and teacher-score approval are enforced server-side. Groq is optional and must be supplied through Secrets, never committed.

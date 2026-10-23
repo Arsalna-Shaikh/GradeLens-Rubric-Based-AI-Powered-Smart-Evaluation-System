@@ -1,136 +1,60 @@
 # GradeLens
 
-Rubric-based AI-powered evaluation platform for universities. Teachers create classes, assignments and rubrics; students submit PDFs; MCQs are auto-graded; written answers are evaluated by a Groq LLM; teachers review and approve before releasing feedback.
+GradeLens is a FastAPI + Next.js rubric evaluation platform. Teachers author classes and assignments, students submit work, deterministic MCQs and optional Groq drafts are reviewed by teachers, and only released results are visible to students.
 
-## Stack
+## Quickstart
 
-| Layer | Tech |
-|-------|------|
-| Backend | Python 3.11, FastAPI, SQLAlchemy 2, Alembic, PostgreSQL |
-| Auth | JWT, bcrypt, pyotp TOTP 2FA |
-| Frontend | Next.js App Router, React, Tailwind CSS |
-| AI (later) | LangChain ChatGroq via Groq API |
-
-## Project structure
-
-```
-.
-├── backend/
-│   ├── app/
-│   │   ├── main.py
-│   │   ├── config.py
-│   │   ├── db.py
-│   │   ├── deps.py
-│   │   ├── models/
-│   │   ├── schemas/
-│   │   ├── services/
-│   │   └── routers/
-│   ├── alembic/
-│   ├── tests/
-│   └── requirements.txt
-├── frontend/
-│   └── src/app/
-├── docs/
-│   └── ARCHITECTURE.md
-└── .agents/skills/
-```
-
-## Windows setup
-
-1. Install Python 3.11+ and Node.js 18+.
-2. Install PostgreSQL locally (or use the provided `DATABASE_URL`).
-3. Create `backend/.env` and `.env.local` (at repo root) from the `.env.example` files.
-
-## Quick start
-
-From the repository root:
+Set `DATABASE_URL` and a 32+ character `JWT_SECRET` or `SESSION_SECRET` in the workspace Secrets panel. Then:
 
 ```powershell
-# 1. Install dependencies
 npm install
-
-# 2. Configure environment
-copy backend\.env.example backend\.env
-copy .env.example .env.local
-# Edit backend\.env and .env.local with your values.
-# For the shared-origin proxy, leave NEXT_PUBLIC_API_URL empty.
-
-# 3. Start both backend and frontend
 npm run dev
 ```
 
-- Frontend: http://localhost:3000 (or the `PORT` provided by the preview)
-- Backend:  http://localhost:8000
-- API calls from the browser go to `/api/*` and are rewritten to the backend by Next.js.
-- The dev/start command runs `alembic upgrade head` before uvicorn starts, so tables are created automatically.
-- For platform previews, the schema is also managed by `db/migrations/0001_initial_core_tables.sql`, which creates the same tables and seeds `alembic_version` to revision `000000000001` so the backend Alembic runner stays in sync.
-
-### Manual backend (for development)
+Backend checks:
 
 ```powershell
 cd backend
-python -m venv .venv
-.venv\Scripts\Activate.ps1
-pip install -r requirements.txt
 alembic upgrade head
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
-```
-
-## Environment variables
-
-### Backend (`backend/.env`)
-
-- `DATABASE_URL` — PostgreSQL connection string
-- `JWT_SECRET` — at least 32 characters; falls back to `SESSION_SECRET` when unset or too short
-- `SESSION_SECRET` — used as a fallback for JWT signing in preview environments
-- `FRONTEND_URL` — frontend origin for CORS (use `*` for unknown/preview origins)
-- `PREVIEW_MODE` — set to `true` to allow any CORS origin dynamically
-- `GROQ_API_KEY` / `GROQ_MODEL` — used in later phases
-- `OCR_ENABLED` — optional OCR fallback flag
-
-### Frontend (`.env.local` at repo root)
-
-- `NEXT_PUBLIC_API_URL` — backend base URL (e.g. `http://localhost:8000`). Leave empty or unset to use the shared-origin `/api` proxy.
-
-### Preview deployment
-
-- Leave `NEXT_PUBLIC_API_URL` empty so the frontend calls `/api/*` and Next.js rewrites them to the local backend on port 8000.
-- Set `FRONTEND_URL` to the preview URL, or set it to `*` / `PREVIEW_MODE=true` to allow any CORS origin.
-- `npm run dev` automatically reads the `PORT` environment variable for the frontend and runs `alembic upgrade head` before starting the backend.
-
-## Project status
-
-See [docs/PROJECT_STATUS.md](docs/PROJECT_STATUS.md) for the current implementation inventory and open verification items.
-
-## Testing
-
-```powershell
-cd backend
 pytest -q
 ```
 
-## Verifying register/login end-to-end
-
-With both services running:
+The browser uses the shared `/api` proxy to `127.0.0.1:8000`. Start the API separately when using the frontend:
 
 ```powershell
-# Register a test user
-curl -X POST http://localhost:8000/auth/register `
-  -H "Content-Type: application/json" `
-  -d '{"name":"Test User","email":"test@example.com","password":"password123","role":"student"}'
-
-# Confirm the row exists in the database
-psql $env:DATABASE_URL -c "SELECT id, email, role FROM users WHERE email = 'test@example.com';"
-
-# Log in
-curl -X POST http://localhost:8000/auth/login `
-  -H "Content-Type: application/json" `
-  -d '{"email":"test@example.com","password":"password123"}'
+cd backend
+uvicorn app.main:app --reload --port 8000
 ```
 
-Or use the frontend at `/register` and `/login`.
+Then start Next.js from `frontend` (`npm install; npm run dev`) or use the root scripts if configured. Feature routers are loaded defensively, while auth and `/health` remain available if an optional integration is unavailable.
 
-### Runtime fixes in this phase
+## Demo data
 
-- `bcrypt==4.0.1` is pinned before `passlib[bcrypt]` to avoid the passlib 1.7.4 / bcrypt 4.1+ `__about__` incompatibility.
-- `JWT_SECRET` falls back to `SESSION_SECRET` when missing or shorter than 32 characters; the app raises a clear error if neither secret is usable.
+Development only: `python scripts/seed.py` creates `teacher@gradelens.com` and `student@gradelens.com`, both using `DemoOnly-ChangeMe-123!` by default, plus class code `DEMO11` and a sample assignment. Set `DEMO_PASSWORD` for local demonstrations; never use demo credentials in production.
+
+## Security and release policy
+
+All protected endpoints require an access JWT and enforce role plus ownership. Students receive enrolled assignments and minimal submission status metadata while work is pending; result content, scores, feedback, and AI fields are excluded until teacher approval. Reports are released-only. Uploads are PDF magic-byte checked, limited to 10 MB, and stored with random names. Deadlines and one-submission-per-assignment are enforced server-side. JWT transport supports Authorization, X-Auth-Token, X-Access-Token, and a preview query fallback; production should replace localStorage with an httpOnly cookie session.
+
+Groq is optional (`GROQ_API_KEY`, `GROQ_MODEL`). Written grading validates JSON, retries once, rate-limits briefly on 429, and flags invalid output for manual review. Teacher approval is required before release.
+
+See `docs/PROJECT_STATUS.md`, `docs/ARCHITECTURE.md`, `docs/SPEC.md`, and `AI_DISCLOSURE.md` for verification notes.
+
+## Phase 11 verification
+
+The hardening pass keeps optional routers from blocking startup, validates access-token scopes, distinguishes missing/invalid users, adds safe response headers and request IDs, rate-limits password and 2FA failures, and checks role/ownership and release boundaries. Run the backend suite and manually verify the journey: register teacher/student, create class and assignment, enroll, submit before deadline, review, release, and download the report. Groq is opt-in and must never be exposed to the browser. The in-memory limiters are per-process and must be replaced with shared infrastructure for multi-instance deployments.
+
+## Phase 11 sign-off
+
+Hardening is verification-only: startup keeps auth and health available when an optional router fails, request IDs and safe headers aid incident tracing, and role/ownership plus release boundaries are enforced in backend dependencies and queries. Login and 2FA failures are limited in-process by email/IP or temporary-token buckets. This limiter is intentionally not distributed; deploy a shared limiter before scaling horizontally.
+
+Run `npm run test:backend` after configuring PostgreSQL. The full journey should be exercised with a teacher and student: register, enable TOTP, create/join a class, create an assignment, submit before the deadline, review/release, then download the released report. Live Groq calls are opt-in and must be mocked in default tests.
+
+## Deployment checklist
+
+Before production, run `cd backend; alembic upgrade head; pytest -q`, use a strong unique JWT/SESSION secret, set an exact HTTPS `FRONTEND_URL` (do not use preview CORS), terminate TLS, and put uploads in private object storage. Configure external rate limiting, database backups, log aggregation, and alerting. Never enable demo credentials or expose `GROQ_API_KEY` to the browser. The health endpoint intentionally reports only `ok`/`error`, not database internals.
+
+## Observability and production handoff
+Startup logs identify unavailable optional routers without exposing exception details to clients. `/health` returns a deliberately minimal database status. Before deployment, run the migration and test commands, configure HTTPS and exact CORS, enable external rate limiting/log aggregation, and use private object storage for uploads.
+
+The demo seed is intentionally not production data. The complete journey is verified by API boundaries (ownership, role, deadline, one submission, approval, and released-only reports); a live Groq run requires `GROQ_API_KEY` and is opt-in.

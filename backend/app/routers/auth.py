@@ -1,7 +1,9 @@
 import base64
 import io
+import time
+from collections import defaultdict
 from typing import Annotated
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 from jose import JWTError
 import pyotp
@@ -26,7 +28,36 @@ from app.services.auth_service import (
 )
 from app.deps import get_current_user
 
+
+def request_key(value: str) -> str:
+    """Use a non-secret stable bucket key without logging or persisting the token."""
+    import hashlib
+    return hashlib.sha256(value.encode()).hexdigest()[:24]
+
 router = APIRouter(prefix="/auth", tags=["auth"])
+_FAILED_LOGINS: defaultdict[str, list[float]] = defaultdict(list)
+_FAILED_2FA: defaultdict[str, list[float]] = defaultdict(list)
+_MAX_FAILURES = 8
+_WINDOW_SECONDS = 300
+
+
+def _check_limited(bucket: defaultdict[str, list[float]], key: str) -> None:
+    now = time.monotonic()
+    attempts = [stamp for stamp in bucket[key] if now - stamp < _WINDOW_SECONDS]
+    bucket[key] = attempts
+    if len(attempts) >= _MAX_FAILURES:
+        raise HTTPException(status_code=429, detail="Too many failed attempts; try again later")
+
+
+def _record_failure(bucket: defaultdict[str, list[float]], key: str) -> None:
+    bucket[key].append(time.monotonic())
+
+def _check_login_rate(key: str) -> None:
+    _check_limited(_FAILED_LOGINS, key)
+
+
+def _record_login_failure(key: str) -> None:
+    _record_failure(_FAILED_LOGINS, key)
 
 
 def _user_to_out(user: User) -> UserOut:
@@ -55,17 +86,23 @@ def register(payload: RegisterRequest, db: Annotated[Session, Depends(get_db)]):
 
 
 @router.post("/login", response_model=LoginResponse)
-def login(payload: LoginRequest, db: Annotated[Session, Depends(get_db)]):
+def login(request: Request, payload: LoginRequest, db: Annotated[Session, Depends(get_db)]):
+    # Combine email and client address so one noisy client cannot exhaust every
+    # account bucket. The address is used only as an in-process limiter key.
+    limiter_key = f"{payload.email.lower()}:{request.client.host if request.client else 'unknown'}"
+    _check_login_rate(limiter_key)
     user = db.query(User).filter(User.email == payload.email).first()
     if not user or not verify_password(payload.password, user.password_hash):
+        _record_login_failure(limiter_key)
         raise HTTPException(status_code=401, detail="Invalid email or password")
+    _FAILED_LOGINS.pop(limiter_key, None)
 
     if user.totp_enabled:
         temp_token = create_temp_token(user.id)
-        return LoginResponse(requires_2fa=True, temp_token=temp_token)
+        return LoginResponse(requires_2fa=True, temp_token=temp_token, user=_user_to_out(user))
 
     access_token = create_access_token(user.id, user.role)
-    return LoginResponse(access_token=access_token)
+    return LoginResponse(access_token=access_token, user=_user_to_out(user))
 
 
 @router.post("/2fa/setup")
@@ -108,7 +145,7 @@ def verify_2fa(
     return {"message": "2FA enabled successfully"}
 
 
-@router.post("/2fa/login", response_model=TokenResponse)
+@router.post("/2fa/login", response_model=LoginResponse)
 def login_2fa(payload: TwoFaLoginRequest, db: Annotated[Session, Depends(get_db)]):
     try:
         token_payload = decode_token(payload.temp_token)
@@ -126,12 +163,18 @@ def login_2fa(payload: TwoFaLoginRequest, db: Annotated[Session, Depends(get_db)
     if not user or not user.totp_enabled or not user.totp_secret:
         raise HTTPException(status_code=401, detail="2FA not configured")
 
+    # Temporary tokens are deliberately rate-limited separately from passwords.
+    # This limiter is process-local; production should use a shared store.
+    limiter_key = f"{user.id}:{request_key(payload.temp_token)}"
+    _check_limited(_FAILED_2FA, limiter_key)
     totp = pyotp.TOTP(user.totp_secret)
     if not totp.verify(payload.code, valid_window=1):
+        _record_failure(_FAILED_2FA, limiter_key)
         raise HTTPException(status_code=401, detail="Invalid TOTP code")
+    _FAILED_2FA.pop(limiter_key, None)
 
     access_token = create_access_token(user.id, user.role)
-    return TokenResponse(access_token=access_token)
+    return LoginResponse(access_token=access_token, user=_user_to_out(user))
 
 
 @router.get("/me", response_model=UserOut)

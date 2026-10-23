@@ -22,7 +22,7 @@ type AuthContextType = {
   user: User | null
   token: string | null
   loading: boolean
-  login: (token: string) => Promise<void>
+  login: (token: string, initialUser?: User) => Promise<void>
   logout: () => void
 }
 
@@ -58,10 +58,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  async function login(newToken: string) {
+  async function login(newToken: string, initialUser?: User) {
     localStorage.setItem(TOKEN_KEY, newToken)
     setToken(newToken)
-    const data = await apiFetch("/auth/me", {}, newToken)
+    const data = initialUser || await apiFetch("/auth/me", {}, newToken)
     setUser(data)
     if (data.role === "teacher") {
       router.push("/teacher")

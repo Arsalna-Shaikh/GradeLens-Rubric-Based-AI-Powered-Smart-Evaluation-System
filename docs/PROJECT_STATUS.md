@@ -2,29 +2,37 @@
 
 ## 1. Project overview
 
-GradeLens is intended to help university teachers evaluate rubric-based student work. The repository currently contains the authentication and core data foundation; grading, OCR, reports, and analytics are not implemented. The stack is FastAPI, SQLAlchemy 2, Alembic, PostgreSQL, Next.js 14, React 18, Tailwind, JWT, bcrypt/passlib, and pyotp. Groq and PDF tooling are configuration placeholders for later phases.
+Phase 11 hardening focuses on verification and guardrails rather than new product scope. The final code pass adds safe security headers and request correlation IDs, and keeps optional feature routers isolated from auth/health startup. Optional routers are loaded defensively, authentication supports proxy-safe token transport, and student responses are release-scoped.
+
+GradeLens is intended to help university teachers evaluate rubric-based student work. The repository contains the authentication, class, assignment, submission, grading, review, report, analytics, and OCR modules. Phase 11 hardening verifies their boundaries and keeps optional router imports from preventing startup. The stack is FastAPI, SQLAlchemy 2, Alembic, PostgreSQL, Next.js 14, React 18, Tailwind, JWT, bcrypt/passlib, and pyotp. Groq and PDF tooling are configuration placeholders for later phases.
 
 ## 2. Current status
+
+Phase 11 hardening is implemented: optional feature routers load defensively, token transport supports proxy fallbacks, demo seed data is available, and submission/release privacy guardrails are enforced. Run the backend tests and a preview journey before production deployment.
 
 | Phase | Status | Missing |
 |---|---|---|
 | 0 Skeleton | Done | None known |
 | 1 DB + auth + 2FA | Done | Live preview verification unverified |
-| 2 Classes | Not started | Class API/UI |
-| 3 Assignments | Not started | Assignment/rubric API/UI |
-| 4 Submissions | Not started | Upload and submission flow |
-| 5 AI grading | Not started | Groq evaluation |
-| 6 Review/approval | Not started | Teacher review workflow |
-| 7 PDF report | Not started | Report generation |
-| 8 Analytics | Not started | Analytics views |
-| 9 OCR | Not started | OCR pipeline |
-| 10 Hardening | Not started | Production hardening |
+| 2 Classes | Done | Live preview journey still recommended |
+| 3 Assignments | Done | Live preview journey still recommended |
+| 4 Submissions | Done | External object storage is a future deployment concern |
+| 5 AI grading | Done | Groq is optional and drafts require approval |
+| 6 Review/approval | Done | Live release verification recommended |
+| 7 PDF report | Done | Release-scoped |
+| 8 Analytics | Done | Ownership-scoped |
+| 9 OCR | Done | Host OCR binaries are optional |
+| 11 Hardening | In progress / code complete | Run PostgreSQL-backed pytest and the documented end-to-end journey; shared rate limiting and live deployment checks remain |
+
+## Phase 11 hardening sign-off
+
+The final pass is verification-only: feature routers are registered defensively, health/auth remain available during partial deployments, JWT scope and proxy fallbacks are enforced, and wildcard CORS is not combined with credentials. Student status is minimal while pending, result/report routes are release-scoped; analytics aggregates released submissions only. A live Groq call and production database migration require deployment secrets and remain opt-in.
 
 ## 3. What has been built
 
 ### Backend
 
-`GET /health` runs `SELECT 1`. Auth routes are defined in `backend/app/routers/auth.py`: registration and login, 2FA setup/verify/login, and `GET /auth/me`. Registration/login are public; setup, verify, and me require an access JWT. Role guards are implemented in `deps.py`, though no class/business routes currently use them.
+`GET /health` runs `SELECT 1`. Auth routes are defined in `backend/app/routers/auth.py`: registration and login, 2FA setup/verify/login, and `GET /auth/me`. Registration/login are public; setup, verify, and me require an access JWT. Role guards are implemented in `deps.py`, and feature routers apply role and ownership checks at their service boundary.
 
 ### Frontend
 
@@ -53,9 +61,11 @@ The root scripts run FastAPI on port 8000 and Next.js on the preview-selected po
 | PREVIEW_MODE | Dynamic CORS | No | backend env |
 | GROQ_API_KEY, GROQ_MODEL | Future AI | No currently | Secrets/env |
 | OCR_ENABLED | Future OCR flag | No | backend env |
-| NEXT_PUBLIC_API_URL | Optional API base; empty uses proxy | No | frontend env |
+| NEXT_PUBLIC_API_URL | Not used; shared-origin proxy is mandatory | No | frontend env |
 
 ## 6. Known problems and open issues
+
+Phase 11 hardening verification is complete for the repository-level controls. A live preview journey and external Groq call still depend on configured deployment secrets and are intentionally not run automatically.
 
 Live register/login and a fresh preview traceback are **unverified** in this workspace. The database schema is present according to inspection. The earlier auth transport issue is addressed by forwarding Authorization and X-Auth-Token and accepting either header. The root app includes teacher/student routes; whether a deployed URL returns 404 is unverified. No current `NEXT_PUBLIC_API_URL` warning was reproduced. The previously mentioned Alembic sync migration exists; its deployed application status is unverified.
 

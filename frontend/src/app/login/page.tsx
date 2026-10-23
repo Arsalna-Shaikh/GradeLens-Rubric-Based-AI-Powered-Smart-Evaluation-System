@@ -27,7 +27,7 @@ export default function Login() {
       if (data.requires_2fa) {
         setTempToken(data.temp_token)
       } else {
-        await login(data.access_token)
+        await login(data.access_token, data.user)
       }
     } catch (err: any) {
       setError(err.data?.detail || "Login failed")
@@ -46,7 +46,7 @@ export default function Login() {
         method: "POST",
         body: JSON.stringify({ temp_token: tempToken, code }),
       })
-      await login(data.access_token)
+      await login(data.access_token, data.user)
     } catch (err: any) {
       setError(err.data?.detail || "Invalid 2FA code")
     } finally {

@@ -1,6 +1,6 @@
 import logging
 from typing import Any, Annotated
-from fastapi import Depends, Header, HTTPException, status
+from fastapi import Depends, Header, HTTPException, Request, status
 from sqlalchemy.orm import Session
 from jose import JWTError
 from app.db import get_db
@@ -11,15 +11,19 @@ logger = logging.getLogger(__name__)
 
 
 def get_current_user(
+    request: Request,
     authorization: Annotated[str | None, Header()] = None,
     x_auth_token: Annotated[str | None, Header()] = None,
+    x_access_token: Annotated[str | None, Header()] = None,
     db: Annotated[Session, Depends(get_db)] = None,
 ) -> User:
-    raw = authorization or x_auth_token
-    logger.info("auth header received: authorization=%s x_auth_token=%s", bool(authorization), bool(x_auth_token))
+    raw = (authorization or x_auth_token or x_access_token or request.headers.get("authorization") or
+           request.headers.get("x-auth-token") or request.headers.get("x-access-token") or
+           request.query_params.get("token") or request.query_params.get("access_token"))
+    logger.debug("auth transport present: authorization=%s x_auth_token=%s", bool(authorization), bool(x_auth_token))
     if not raw:
         raise HTTPException(status_code=401, detail="Not authenticated")
-    token = raw[7:] if raw.lower().startswith("bearer ") else raw
+    token = raw[7:].strip() if raw.lower().startswith("bearer ") else raw.strip()
     try:
         payload = decode_token(token)
     except (JWTError, ValueError):

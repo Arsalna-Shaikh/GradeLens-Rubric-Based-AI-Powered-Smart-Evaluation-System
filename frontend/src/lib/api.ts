@@ -1,7 +1,5 @@
-const API_BASE =
-  typeof process !== "undefined" && process.env.NEXT_PUBLIC_API_URL
-    ? process.env.NEXT_PUBLIC_API_URL.replace(/\/$/, "")
-    : ""
+// Shared-origin proxy is the only supported browser transport in production.
+const API_BASE = ""
 
 function buildUrl(path: string): string {
   const normalized = path.startsWith("/") ? path : `/${path}`
@@ -17,9 +15,14 @@ export async function apiFetch(
   options: RequestInit = {},
   token?: string | null
 ) {
-  const url = buildUrl(path)
+  let url = buildUrl(path)
+  if (token) {
+    const separator = url.includes("?") ? "&" : "?"
+    url = `${url}${separator}token=${encodeURIComponent(token)}`
+  }
+  const isForm = typeof FormData !== "undefined" && options.body instanceof FormData
   const headers: Record<string, string> = {
-    "Content-Type": "application/json",
+    ...(isForm ? {} : { "Content-Type": "application/json" }),
     ...(options.headers as Record<string, string>),
   }
 
@@ -27,6 +30,7 @@ export async function apiFetch(
     headers["Authorization"] = `Bearer ${token}`
     // Some preview proxies strip Authorization; FastAPI also accepts this fallback.
     headers["X-Auth-Token"] = token
+    headers["X-Access-Token"] = token
   }
 
   const response = await fetch(url, { ...options, headers })

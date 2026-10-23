@@ -19,6 +19,13 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
+    # The platform may provision the core schema before Alembic runs. In that
+    # case, mark this baseline as applied instead of recreating its tables.
+    bind = op.get_bind()
+    inspector = sa.inspect(bind)
+    if "users" in inspector.get_table_names():
+        return
+
     # Tables use if_not_exists so this migration can run safely even when the
     # platform-managed SQL migration has already created the schema.
     op.create_table(

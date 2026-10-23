@@ -17,6 +17,7 @@ class Answer(Base):
     ai_strengths: Mapped[Optional[List[str]]] = mapped_column(JSON, nullable=True)
     ai_lackings: Mapped[Optional[List[str]]] = mapped_column(JSON, nullable=True)
     ai_suggestions: Mapped[Optional[List[str]]] = mapped_column(JSON, nullable=True)
+    needs_manual: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     teacher_score: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     teacher_feedback: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     is_approved: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)

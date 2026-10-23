@@ -1,5 +1,6 @@
 from pydantic import BaseModel, EmailStr, ConfigDict
 from typing import Optional
+from app.schemas.user import UserOut
 
 
 class RegisterRequest(BaseModel):
@@ -34,3 +35,4 @@ class LoginResponse(BaseModel):
     token_type: str = "bearer"
     requires_2fa: Optional[bool] = None
     temp_token: Optional[str] = None
+    user: Optional[UserOut] = None

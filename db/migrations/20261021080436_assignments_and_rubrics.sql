@@ -1,0 +1,4 @@
+CREATE TABLE IF NOT EXISTS assignments (id SERIAL PRIMARY KEY, class_id INTEGER NOT NULL REFERENCES classes(id) ON DELETE CASCADE, title VARCHAR(255) NOT NULL, description TEXT, total_marks INTEGER NOT NULL DEFAULT 0, deadline TIMESTAMPTZ, created_at TIMESTAMPTZ NOT NULL DEFAULT now(), updated_at TIMESTAMPTZ NOT NULL DEFAULT now());
+CREATE TABLE IF NOT EXISTS questions (id SERIAL PRIMARY KEY, assignment_id INTEGER NOT NULL REFERENCES assignments(id) ON DELETE CASCADE, type VARCHAR(20) NOT NULL, text TEXT NOT NULL, marks INTEGER NOT NULL DEFAULT 0, options JSONB, correct_answer VARCHAR(255), rubric TEXT, sample_answer TEXT, created_at TIMESTAMPTZ NOT NULL DEFAULT now(), updated_at TIMESTAMPTZ NOT NULL DEFAULT now());
+CREATE INDEX IF NOT EXISTS ix_assignments_class_id ON assignments(class_id);
+CREATE INDEX IF NOT EXISTS ix_questions_assignment_id ON questions(assignment_id);

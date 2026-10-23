@@ -1,36 +1,13 @@
 "use client"
-
+import { useEffect, useState } from "react"
 import { ProtectedRoute } from "@/components/ProtectedRoute"
 import { RoleGuard } from "@/components/RoleGuard"
 import { useAuth } from "@/context/AuthContext"
+import { apiFetch } from "@/lib/api"
+type Enrollment={id:number;class_name:string;subject:string;join_code:string}
+type Submission={id:number;assignment_id:number;status:string;original_filename?:string;content_text?:string}
 
-export default function StudentDashboardPage() {
-  return (
-    <ProtectedRoute>
-      <RoleGuard role="student">
-        <StudentDashboard />
-      </RoleGuard>
-    </ProtectedRoute>
-  )
-}
+function ReportLink({submission}:{submission:Submission}) { return submission.status === "released" ? <a className="ml-4 text-blue-700 underline" href={`/api/submissions/${submission.id}/feedback-pdf`} target="_blank" rel="noreferrer">Download feedback PDF</a> : null }
 
-function StudentDashboard() {
-  const { user, logout } = useAuth()
-
-  return (
-    <main className="min-h-screen p-6">
-      <div className="max-w-4xl mx-auto">
-        <div className="flex items-center justify-between mb-6">
-          <h1 className="text-3xl font-bold">Student Dashboard</h1>
-          <button
-            onClick={logout}
-            className="px-4 py-2 border rounded hover:bg-gray-100"
-          >
-            Logout
-          </button>
-        </div>
-        <p className="text-gray-700">Welcome, {user?.name}. Enrollments and submissions coming soon.</p>
-      </div>
-    </main>
-  )
-}
+export default function StudentDashboardPage(){return <ProtectedRoute><RoleGuard role="student"><StudentDashboard/></RoleGuard></ProtectedRoute>}
+function StudentDashboard(){const {user,token,logout}=useAuth();const [code,setCode]=useState("");const [items,setItems]=useState<Enrollment[]>([]);const [message,setMessage]=useState("");const [submissions,setSubmissions]=useState<Submission[]>([]);async function load(){setItems(await apiFetch("/classes/enrolled",{},token));setSubmissions(await apiFetch("/submissions/mine",{},token))}useEffect(()=>{if(token)load()},[token]);async function enroll(e:React.FormEvent){e.preventDefault();try{await apiFetch("/classes/enroll",{method:"POST",body:JSON.stringify({join_code:code})},token);setCode("");setMessage("Enrolled successfully");load()}catch(e:any){setMessage(e.message)}}return <main className="min-h-screen p-6"><div className="max-w-4xl mx-auto"><div className="flex justify-between mb-6"><h1 className="text-3xl font-bold">Student Dashboard</h1><button onClick={logout} className="px-4 py-2 border rounded">Logout</button></div><p className="mb-6">Welcome, {user?.name}</p><form onSubmit={enroll} className="flex gap-2 mb-6"><input required placeholder="Enter class join code" value={code} onChange={e=>setCode(e.target.value)} className="border rounded px-3 py-2"/><button className="bg-blue-600 text-white rounded px-4">Enroll</button></form>{message&&<p className="mb-4 text-gray-700">{message}</p>}<div className="grid gap-3">{items.map(x=><div className="border rounded p-4" key={x.id}><b>{x.class_name}</b><span className="ml-3 text-gray-600">{x.subject}</span></div>)}</div><section className="mt-8 border rounded p-5 bg-white"><h2 className="text-xl font-semibold mb-2">My submissions</h2><p className="text-sm text-gray-600 mb-3">Typed and PDF submissions appear here after you submit them from an assignment.</p>{submissions.length===0?<p className="text-gray-500">No submissions yet.</p>:<div className="grid gap-2">{submissions.map(s=><div key={s.id} className="border rounded p-3"><span>Assignment #{s.assignment_id}</span><span className="ml-4 text-blue-700">{s.status}</span>{s.original_filename&&<span className="ml-4 text-gray-600">{s.original_filename}</span>}<ReportLink submission={s}/></div>)}</div>}</section></div></main>}
